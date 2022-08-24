@@ -1,7 +1,9 @@
 # Winter moth RNAseq
 This folder contains all the scripts needed to reproduce the analysis of RNAseq data from winter moth embryos, published in XXXX.
 
-**NB: The final transcriptome incl. functional annotation used for the analysis can be found on XXXX. Final gene counts and phenotypic data used to do this analysis can be found on Dryad XXXX**
+All used software versions are reported in the manuscript.
+
+**NB: The raw RNAseq reads can be found on XXXX. The final transcriptome incl. functional annotation used for the analysis can be found on XXXX. Final gene counts and phenotypic data used to do the analysis can be found on Dryad XXXX**
 
 &nbsp;
 
@@ -36,7 +38,7 @@ R script for data quality checks incl. filtering and PCA analysis.
 
 ## Step4: Statistical analysis
 ### Script: ```4a_analysis_limma_allweeks.R```
-R script for Differential expression analysis using R package ```limma```.
+R script for Differential expression analysis using R package ```limma```. See ```_src/env_limma.txt``` for R package versions.
 
 ### Script: ```4b_analysis_WGCNA_coexpr.R```
 R script for Co-expression analysis using R package ```WGCNA```.
@@ -50,6 +52,8 @@ R script to visualize Differential expression analysis results with Venn diagram
 ### Script: ```5b_explore_DEGs.R```
 R script to visualize patterns of individual differentially expressed genes (DEGs), check overlap between analyses, and produce MA and Volcano plots.
 
+See ```_src/env_visualization.txt``` for R package versions.
+
 &nbsp;
 
 ## Step6: Gene Ontology (GO) Overrepresentation analysis
@@ -57,13 +61,15 @@ R script to visualize patterns of individual differentially expressed genes (DEG
 R script for GO overrepresentation analysis on Co-expression analysis results with R package ```topGO```
 
 ### Script: ```6b_limma-results_topGO.R```
-R script for GO overrepresentation analysis on Differential expression analysis results with R package ```topGO```
+R script for GO overrepresentation analysis on Differential expression analysis results with R package ```topGO```. 
+
+See ```_src/env_topGO.txt``` for R package versions.
 
 &nbsp;
 
 ## Step7: Hierarchical clustering of GO results
 ### Script: ```7_topGO-results_ViSEAGO.R```
-R script for hierarchical clustering of GO results with R package ```ViSEAGO```
+R script for hierarchical clustering of GO results with R package ```ViSEAGO```. See ```_src/env_ViSEAGO.txt``` for R package versions.
 
 &nbsp;
 
