@@ -3,7 +3,7 @@ This folder contains all the scripts needed to reproduce the analysis of RNAseq 
 
 All used software versions are reported in the manuscript.
 
-**NB: The raw RNAseq reads can be found on XXXX. The final transcriptome incl. functional annotation used for the analysis can be found on XXXX. Final gene counts and phenotypic data used to do the analysis can be found on Dryad XXXX**
+**NB: The raw RNAseq reads can be found on XXXX. All processed data used to run the analysis can be found on Dryad XXXX, including the final transcriptome incl. functional annotation, GO annotation table, final gene counts matrix, and phenotypic data.**
 
 &nbsp;
 
