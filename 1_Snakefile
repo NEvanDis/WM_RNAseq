@@ -1,0 +1,287 @@
+### Snakefile for QC, trimming, mapping and quantification WM_RNAseq data TransfExp2019
+## wd="~/WM_RNAseq"
+## conda_env="RNAseq"
+## NB: Snakemake only re-runs jobs if one of the input files is newer than one of the output files 
+##      or one of the input files will be updated by another job
+
+## define wildcards:
+SAMPLE, = glob_wildcards("data/primary/TransfExp2019/rawdata/{sample}_1.fq.gz")
+## list of all samples
+
+rule all:
+    input:
+        expand("scratch/TransfExp2019/clean_reads/trimmomatic/{sample}_1.trimmed.fq.gz", sample=SAMPLE),
+        expand("scratch/TransfExp2019/aligned_reads/{sample}.sorted.bam", sample=SAMPLE), 
+        expand("scratch/TransfExp2019/aligned_reads/{sample}.sorted.bam.bai", sample=SAMPLE),
+        expand("scratch/TransfExp2019/aligned_reads/v2/{sample}.mkdup.bam", sample=SAMPLE),
+        expand("results/reports/alignment/{sample}.short_alignment_metrics.txt", sample=SAMPLE),
+        expand("results/reports/alignment/{sample}.alignment_metrics.txt", sample=SAMPLE),
+        expand("results/reports/alignment/{sample}.RNA_metrics.txt", sample=SAMPLE),
+        expand("scratch/TransfExp2019/aligned_reads/v2/{sample}.sorted.filt.bam", sample=SAMPLE),
+        expand("scratch/TransfExp2019/tran_assembl/v2/{sample}.gtf", sample=SAMPLE),
+        "scratch/TransfExp2019/mergelist_v2.txt",
+        "scratch/TransfExp2019/stringtie_merged_v2.gtf",
+        "results/gffcompare/merged_v2.annotated.gtf",
+        #expand("results/abundances/abund_{sample}.gtf", sample=SAMPLE), #incl all novel transcripts
+        #expand("results/abundances/v2/abund_{sample}.gtf", sample=SAMPLE), #incl only novel transcripts with homologs
+        #expand("results/abundances/v3/abund_{sample}.gtf", sample=SAMPLE), #incl only novel transcripts with homologs after excl optical dupl (but made mistake in excl novel transcripts)
+        expand("results/abundances/v3cor/abund_{sample}.gtf", sample=SAMPLE),
+## put output files for each step here; pipeline will stop running if all output files have been created
+## advantage of listing all outputs rather than only last step: you can run only one step by calling in shell: "snakemake <target output>"
+
+
+### QC and trimming raw data
+## raw QC: 
+# fastqc -o ./results/reports/raw/ -t 12 data/primary/TransfExp2019/rawdata/*.gz
+# ./src/FastQ-Screen-0.14.1/fastq_screen --threads 12 --outdir ./results/reports/raw/ data/primary/TransfExp2019/rawdata/*.gz
+# multiqc -d -n TransfExp2019_QC_raw --interactive -o results/reports/raw/multiqc results/reports/raw
+
+rule trim:
+    input:
+        R1="data/primary/TransfExp2019/rawdata/{sample}_1.fq.gz",
+        R2="data/primary/TransfExp2019/rawdata/{sample}_2.fq.gz",
+        adapters="src/TruSeq3-PE-2.fa"
+    output:
+        R1trim="scratch/TransfExp2019/clean_reads/trimmomatic/{sample}_1.trimmed.fq.gz",
+        R1unpaired="scratch/TransfExp2019/clean_reads/trimmomatic/{sample}_1.unpaired.fq.gz",
+        R2trim="scratch/TransfExp2019/clean_reads/trimmomatic/{sample}_2.trimmed.fq.gz",
+        R2unpaired="scratch/TransfExp2019/clean_reads/trimmomatic/{sample}_2.unpaired.fq.gz"
+    log:
+        "scratch/logs/QC/{sample}_trimm.log"
+    threads: 8
+    shell:
+        "(trimmomatic PE -threads {threads} {input.R1} {input.R2} {output.R1trim} {output.R1unpaired} {output.R2trim} {output.R2unpaired} ILLUMINACLIP:{input.adapters}:2:30:10:2:keepBothReads LEADING:30 TRAILING:30) 2> {log}"
+
+## clean qc: 
+# fastqc -o ./results/reports/clean/trimmomatic -t 12 scratch/TransfExp2019/clean_reads/trimmomatic/*.gz
+# ./src/FastQ-Screen-0.14.1/fastq_screen --threads 12 --outdir ./results/reports/clean/trimmomatic scratch/TransfExp2019/clean_reads/trimmomatic/*.gz
+# multiqc -d -n TransfExp2019_QC_clean --interactive -o results/reports/clean/trimmomatic/multiqc results/reports/clean/trimmomatic
+
+
+### create HISAT2 index
+## use agat_convert_sp_gff2gtf.pl to convert .gff to .gtf
+## unzipped original file then converted it
+## conda_env="gffconversion"
+# zcat data/ref/genome_files/Obru_genes_v2.gff.gz > scratch/ref/Obru_genes_v2.gff
+# conda activate gffconversion
+# agat_convert_sp_gff2gtf.pl --gff scratch/ref/Obru_genes_v2.gff -o src/ref/Obru_genes_v2.gtf
+
+# extract_splice_sites.py src/ref/Obru_genes_v2.gtf > scratch/ref/wm.ss
+# extract_exons.py src/ref/Obru_genes_v2.gtf > scratch/ref/wm.exon
+
+## unzip genome file and built index
+# zcat data/ref/genome_files/Obru1.fsa.gz > scratch/ref/Obru1.fsa
+# hisat2-build --ss scratch/ref/wm.ss --exon scratch/ref/wm.exon scratch/ref/Obru1.fsa scratch/ref/wm_tran
+
+
+### map reads to ref with hisat2 and save only sorted bam file
+rule map:
+    input:
+        R1trim="scratch/TransfExp2019/clean_reads/trimmomatic/{sample}_1.trimmed.fq.gz",
+        R2trim="scratch/TransfExp2019/clean_reads/trimmomatic/{sample}_2.trimmed.fq.gz"
+    output:
+        "scratch/TransfExp2019/aligned_reads/{sample}.sorted.bam"
+    params:
+        ref="scratch/ref/wm_tran",
+    log:
+        "scratch/logs/hisat2/{sample}_hisat2.log"
+    threads: 8
+    shell: 
+        "(hisat2 -p {threads} --dta -x {params.ref} -1 {input.R1trim} -2 {input.R2trim} | samtools sort -@ {threads} -o {output}) 2> {log}"
+
+
+### index hisat2 bam files so I can view alignment
+rule index:
+    input:
+        "scratch/TransfExp2019/aligned_reads/{sample}.sorted.bam"
+    output:
+        "scratch/TransfExp2019/aligned_reads/{sample}.sorted.bam.bai"
+    log:
+        "scratch/logs/hisat2/{sample}_index.log"
+    threads: 8
+    shell:
+        "(samtools index -@ {threads} {input}) 2> {log}"
+
+
+### mapping QC
+
+## Duplication metrics
+rule qcmap_dup:
+    input:
+        "scratch/TransfExp2019/aligned_reads/{sample}.sorted.bam"
+    output:
+        mkdup="scratch/TransfExp2019/aligned_reads/v2/{sample}.mkdup.bam",
+        metrics="results/reports/alignment/v2/{sample}.mkdup_metrics.txt"
+    log:
+        "scratch/logs/hisat2/{sample}_mkdup_v2.log"
+    shell:
+        "(java -Xmx100g -jar /home/nioo/natalied/.conda/pkgs/picard-2.23.8-0/share/picard-2.23.8-0/picard.jar MarkDuplicates INPUT={input} OUTPUT={output.mkdup} METRICS_FILE={output.metrics} CREATE_INDEX=TRUE TAGGING_POLICY=OpticalOnly) 2> {log}"
+
+## Alignment metrics
+rule qcmap_align1:
+    input:
+        "scratch/TransfExp2019/aligned_reads/{sample}.sorted.bam"
+    output:
+        "results/reports/alignment/{sample}.short_alignment_metrics.txt"
+    shell:
+        "(samtools flagstat {input}) > {output}"
+
+rule qcmap_align2:
+    input:
+        bam="scratch/TransfExp2019/aligned_reads/{sample}.sorted.bam",
+        ref="scratch/ref/Obru1.fa"
+    output:
+        "results/reports/alignment/{sample}.alignment_metrics.txt"
+    log:
+        "scratch/logs/hisat2/{sample}_alignment_metrics.log"
+    shell:
+        "(picard CollectAlignmentSummaryMetrics INPUT={input.bam} OUTPUT={output} REFERENCE_SEQUENCE={input.ref}) 2> {log}"
+        
+## RNA alignment metrics
+## Need REF_FLAT file for picard CollectRnaSeqMetrics
+## conda_env="gffconversion"
+# gtfToGenePred -genePredExt src/ref/Obru_genes_v2.gtf src/ref/Obru_genes_v2.txt
+## Move column 12 to position 1 and Picard should take it
+## reorder columns, make sure to convert space to tabs (awk doesn't take tabs as input)
+# awk '{ print $12 " " $1 " " $2 " " $3 " " $4 " " $5 " " $6 " " $7 " " $8 " " $9 " " $10}' src/ref/Obru_genes_v2.txt | \
+# tr [:blank:] \\t > src/ref/Obru_genes_v2_arr.txt 
+
+rule qcmap_rnalign:
+    input:
+        bam="scratch/TransfExp2019/aligned_reads/{sample}.sorted.bam",
+        ref="src/ref/Obru_genes_v2_arr.txt"
+    output:
+        "results/reports/alignment/{sample}.RNA_metrics.txt"
+    log:
+        "scratch/logs/hisat2/{sample}_RNA_metrics.log"
+    shell:
+        "(picard CollectRnaSeqMetrics INPUT={input.bam} REF_FLAT={input.ref} OUTPUT={output} STRAND=NONE) 2> {log}"
+
+## get mapping qc report
+# multiqc -d -n TransfExp2019_QC_mapping --interactive -o results/reports/alignment/multiqc results/reports/alignment/
+
+
+### new in alignment.v2 files
+### filter out any optical duplicates before doing assemby and quantification
+rule filter_optdup:
+    input:
+        "scratch/TransfExp2019/aligned_reads/v2/{sample}.mkdup.bam"
+    output:
+        "scratch/TransfExp2019/aligned_reads/v2/{sample}.sorted.filt.bam"
+    log:
+        "scratch/logs/hisat2/v2/{sample}_optdupfilt.log"
+    shell: 
+        "(samtools view -h {input} | grep -v 'DT:Z:SQ' | samtools view -b -o {output}) 2> {log}"
+
+
+### assembly with stringtie
+rule assemble:
+    input:
+        bam="scratch/TransfExp2019/aligned_reads/v2/{sample}.sorted.filt.bam",
+        ref="scratch/ref/Obru_genes_v2.gff"
+    output:
+        "scratch/TransfExp2019/tran_assembl/v2/{sample}.gtf"
+    log:
+        "scratch/logs/stringtie/v2/{sample}_assemb.stringtie.log"
+    threads: 8
+    shell: 
+        "(stringtie -p {threads} -G {input.ref} -o {output} {input.bam}) 2> {log}"
+
+
+### make list of assembly files
+# for FILE in scratch/TransfExp2019/tran_assembl/v2/*.gtf; do echo $FILE; done > scratch/TransfExp2019/mergelist_v2.txt
+
+
+### merge assemblies with stringtie
+rule merge_assembl:
+    input:
+        ref="src/ref/Obru_genes_v2.gtf",
+        list="scratch/TransfExp2019/mergelist_v2.txt"
+    output:
+        "scratch/TransfExp2019/stringtie_merged_v2.gtf"
+    log:
+        "scratch/logs/stringtie/merge_stringtie_v2.log"
+    threads: 8
+    shell: 
+        "(stringtie --merge -p {threads} -G {input.ref} -o {output} {input.list}) 2> {log}"
+
+
+
+### compare transcriptome to ref annotation
+rule gff_comp:
+    input:
+        ref="src/ref/Obru_genes_v2.gtf",
+        massembl="scratch/TransfExp2019/stringtie_merged_v2.gtf"
+    output:
+        "results/gffcompare/merged_v2.tracking",
+        "results/gffcompare/merged_v2.annotated.gtf",
+        "results/gffcompare/merged_v2.loci",
+        "results/gffcompare/merged_v2.stats"
+    params: 
+        "results/gffcompare/merged_v2"
+    log:
+        "scratch/logs/gff_comp_v2.log"
+    threads: 8
+    shell: 
+        "(gffcompare -V -r {input.ref} -o {params} {input.massembl}) 2> {log}"
+
+
+
+### exclude novel transcripts without homologs
+
+## Get .fasta file from Stringtie
+## conda_env="gffconversion"
+# NOT CORRECT grep -P 'StringTie\ttranscript' scratch/TransfExp2019/stringtie_merged_v2.gtf | grep -v '_id "OBRU01_' > results/novel_sites.stringtie_v2.gtf
+## grep only novel transcripts and not novel exons
+# USE INSTEAD!! grep -v '_id "OBRU01_' scratch/TransfExp2019/stringtie_merged_v2.gtf > results/novel_sites.stringtie_v2_cor.gtf
+
+## then translate .gtf file to .fasta file
+# gffread -w results/novel_sites.stringtie_v2_cor.fa -g scratch/ref/Obru1.fsa results/novel_sites.stringtie_v2_cor.gtf
+
+## Do diamond blastx search, get xml output
+## conda_env="RNAseq"
+# diamond blastx -q results/novel_sites.stringtie_v2_cor.fa -d /data/shared/db/blast/nr/20200128/nr-diamond-0.9.29.dmnd -b12 -c1 -p 8 -f 5 -o results/blast/novel_sites.blast_v2_cor.xml
+
+## Grep all queries without blast hits
+# grep '</Iteration_hits>' -B 3 results/blast/novel_sites.blast_v2_cor.xml | grep -o 'MSTRG.*<' | rev | cut -c 2- | rev > results/blast/novel_sites_queries_nohits_v2_cor.txt
+# grep -c 'MSTRG' results/blast/novel_sites_queries_nohits_v2_cor.txt
+## BEFORE CORRECTION: For 25059 novel sites predicted by Stringtie, no homologs found
+## AFTER CORRECTION: For 27227 novel sites predicted by Stringtie, no homologs found
+
+## Exclude these transcript_ids from stringtie_merged before producing counts
+## Put quotes around queries for grep AND put 'transcript_id' in front otherwise 5 OBRU transcripts dropped that are contained inside novel transcripts
+# cat results/blast/novel_sites_queries_nohits_v2_cor.txt | while read ENTRY; do echo transcript_id \"$ENTRY\">> results/blast/novel_sites_queries_nohits_regexp_v2_cor.txt; done
+
+## Make sure in queries dots are escaped and all line endings are LF, otherwise match is not exact and grep will exclude more transcripts than it should (use Notepad++ find/replace)
+# grep -f results/blast/novel_sites_queries_nohits_regexp_v2_cor.txt -v scratch/TransfExp2019/stringtie_merged_v2.gtf > scratch/TransfExp2019/stringtie_merged_v2_sub_cor.gtf
+
+## Check type of novel transcripts dropped
+# grep -f results/blast/novel_sites_queries_nohits_regexp_v2_cor.txt -v results/gffcompare/merged_v2.annotated.gtf > results/gffcompare/merged_v2.annotated_sub_cor.gtf
+
+
+
+### estimate transcript abundances with stringtie
+rule abund:
+    input:
+        bam="scratch/TransfExp2019/aligned_reads/v2/{sample}.sorted.filt.bam",
+        massembl="scratch/TransfExp2019/stringtie_merged_v2_sub_cor.gtf"
+    output:
+        gtf="results/abundances/v3cor/abund_{sample}.gtf",
+        abuntab="results/abundances/v3cor/abund_{sample}.out"
+    log:
+        "scratch/logs/stringtie/{sample}_abundv3cor.stringtie.log"
+    threads: 8
+    shell: 
+        "(stringtie -e -p 8 -G {input.massembl} -o {output.gtf} -A {output.abuntab} {input.bam}) 2> {log}"
+
+
+
+### prep data for use with DESeq2 or limma
+# for FILE in results/abundances/v3cor/*.gtf; do SAMPLE="${FILE#*abund_}"; ID="${SAMPLE%.*}"; echo $ID $FILE; done > results/abundances/v3cor/abund_filelist.txt
+# prepDE.py -v -i results/abundances/v3cor/abund_filelist.txt -g results/TransfExp2019_gene_count_matrix_v3cor.csv -t results/TransfExp2019_transcript_count_matrix_v3cor.csv
+
+
+## Check type of novel transcripts in DEGs
+# grep -P "\ttranscript\t" results/gffcompare/merged_v2.annotated_sub_cor.gtf | cut -f 9 > results/gffcompare/gff.annotations.txt
+# grep -f results/DEGsIDs_n2_p0.01.txt results/gffcompare/merged_v2.annotated_sub_cor.gtf > results/gffcompare/merged_v2.annotated_DEGs_n2_p0.01.gtf
+# grep 'class_code "u"' results/gffcompare/merged_v2.annotated_DEGs_n2_p0.01.gtf -c
