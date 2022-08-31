@@ -11,7 +11,7 @@ d_2019 <- read.csv("./analysis/_TransfExp2019/fitted_values/d_im2019_tidy.csv") 
 head(d_2019)
 table(d_2019$treatment) # fix are RNA samples
 
-RNA_sampl <- read.csv(file="./analysis/RNA_available-clutches.csv")
+RNA_sampl <- read.csv(file="./analysis/RNA_available-clutches2019.csv")
 head(RNA_sampl)
 
 final_sel <- c("136", "326", "473", # w2: 136, 326, 473
