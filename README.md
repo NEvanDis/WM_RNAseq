@@ -1,9 +1,9 @@
 # Winter moth RNAseq
-This folder contains all the scripts needed to reproduce the analysis of RNAseq data from winter moth embryos, published in XXXX.
+This folder contains all the scripts needed to reproduce the analysis of RNAseq data from winter moth embryos, published in Molecular Ecology doiXXXX.
 
 All used software versions are reported in the manuscript.
 
-**NB: The raw RNAseq reads can be found on XXXX. All processed data used to run the analysis can be found on Dryad XXXX, including the final transcriptome incl. functional annotation, GO annotation table, final gene counts matrix, and phenotypic data.**
+**NB: The raw RNAseq reads can be found on the European Nucleotide Archive (ENA) under accession no. PRJEB55675. All processed data used to run the analysis can be found on Dryad https://doi.org/10.5061/dryad.hx3ffbghd, including the final transcriptome incl. functional annotation, GO annotation table, final gene counts matrix, and phenotypic data.**
 
 &nbsp;
 
