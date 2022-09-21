@@ -1,6 +1,6 @@
-## Working directory: "/home/NIOO.INT/natalied/WM_RNAseq"
+### Working directory: "/home/NIOO.INT/natalied/WM_RNAseq"
 
-## Conda environment location: "/home/NIOO.INT/natalied/.conda/envs/RNAseq"
+### Conda environment location: "/home/NIOO.INT/natalied/.conda/envs/RNAseq"
 ```
 conda activate RNAseq 		# to activate the environment containing software I need
 conda list 			# check what software is installed in environment
@@ -9,7 +9,7 @@ conda deactivate 		# to quite the environment again
 conda env export > src/env_WM_RNAseq_pipeline.yml	# save software versions for reproducibility
 ``` 
 
-# more info on conda: 
+### more info on conda: 
  - https://github.com/bioconda/bioconda-recipes
  - https://bioconda.github.io/index.html #
 
@@ -18,7 +18,7 @@ conda env export > src/env_WM_RNAseq_pipeline.yml	# save software versions for r
 ln -s <path name> 		#make symbolic link to data location, so that can access it easily from my analysis folder
 ```
 
-### FUNCTIONAL ANNOTATION: Step 1
+# FUNCTIONAL ANNOTATION: Step 1
 Do diamond blast search on scratch/TransfExp2019/stringtie_merged_v2_sub_cor.gtf
 
 ```
@@ -137,7 +137,7 @@ sed -n -e '/MSTRG\.10\.2$/,/>MSTRG/ p' results/novel_sites.stringtie_v2_cor.fa |
 ------------------------------------------------------------
 
 
-### FUNCTIONAL ANNOTATION: Step 2
+# FUNCTIONAL ANNOTATION: Step 2
 Get GO terms and Protein domains with Interproscan
 See: https://interproscan-docs.readthedocs.io/en/latest/
 Run with conda=RNAseq activated
@@ -220,7 +220,7 @@ zcat src/goa_uniprot_all.gaf.gz | grep -f results/blast/uniprotIDs_clean.txt > r
 wget https://www.uniprot.org/mapping/M20210927A084FC58F6BBA219896F365D15F2EB4420796AM.tab -O uniprot.blastp.KEGG.tsv
 ```
 
-### FUNCTIONAL ANNOTATION: Step 3
+# FUNCTIONAL ANNOTATION: Step 3
 Add functional annotation to Stringtie produced transcriptome according to convention (author: Judith E. Risse).
 ```
 # convert gtf to gff and create mRNA and gene features
