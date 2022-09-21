@@ -219,3 +219,28 @@ zcat src/goa_uniprot_all.gaf.gz | grep -f results/blast/uniprotIDs_clean.txt > r
 
 wget https://www.uniprot.org/mapping/M20210927A084FC58F6BBA219896F365D15F2EB4420796AM.tab -O uniprot.blastp.KEGG.tsv
 ```
+
+### FUNCTIONAL ANNOTATION: Step 3
+Add functional annotation to Stringtie produced transcriptome according to convention (author: Judith E. Risse).
+```
+# convert gtf to gff and create mRNA and gene features
+singularity exec agat_0.8.0--pl5262hdfd78af_0.sif agat_convert_sp_gxf2gxf.pl -g stringtie_merged_v2_sub_cor.gtf > stringtie_merged_v2_sub_cor2.gff
+
+# remove agat log lines from gff output
+# annotate with interproscan results
+singularity exec agat_0.8.0--pl5262hdfd78af_0.sif agat_sp_manage_functional_annotation.pl -f stringtie_merged_v2_sub_cor2.gff -i interpro_stringtiev2_sub_cor_noframe_noReactomeMetaCyc.tsv > stringtie_merged_v2_sub_cor_ipr.gff
+
+# remove agat log lines from gff output
+# annotate with blast results from swissprot Drosophila
+singularity exec agat_0.8.0--pl5262hdfd78af_0.sif agat_sp_manage_functional_annotation.pl -f stringtie_merged_v2_sub_cor_ipr.gff -b uniprot_sprot.Dmelanogaster.blastp.tophits_noframe_outfmt6.tsv -d swissprot_drosophila.fa > stringtie_merged_v2_sub_cor_ipr_sd.gff
+
+# remove agat log lines from gff output
+# annotate with blast results from swissprot Insects
+singularity exec agat_0.8.0--pl5262hdfd78af_0.sif agat_sp_manage_functional_annotation.pl -f stringtie_merged_v2_sub_cor_ipr_sd.gff -b uniprot_sprot.Insects.blastp.tophits_noframe_outfmt6.tsv -d swissprot_insects.fa > stringtie_merged_v2_sub_cor_ipr_sd_si.gff
+
+# remove agat log lines from gff output
+# annotate with blast results from trembl Insect
+singularity exec agat_0.8.0--pl5262hdfd78af_0.sif agat_sp_manage_functional_annotation.pl -f stringtie_merged_v2_sub_cor_ipr_sd_si.gff -b uniprot_trembl.Insects.blastp.tophits_wnames_noframe_outfmt6.tsv -d trembl_insects.fa > stringtie_merged_v2_sub_cor_ipr_sd_si_ti.gff
+
+mv stringtie_merged_v2_sub_cor_ipr_sd_si_ti.gff stringtie_merged_v2_sub_cor_annotated.gff
+```
