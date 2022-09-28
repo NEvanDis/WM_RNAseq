@@ -1,5 +1,5 @@
 # Winter moth RNAseq
-This folder contains all the scripts needed to reproduce the analysis of RNAseq data from winter moth embryos, published in Molecular Ecology https://doi.org/10.1111/mec.16705.
+This folder contains all the scripts needed to reproduce the analysis of RNAseq data from winter moth embryos, published in Molecular Ecology https://doi.org/10.1111/mec.16705 : _Transcriptional regulation underlying the temperature response of embryonic development rate in the winter moth._
 
 All used software versions are reported in the manuscript.
 
